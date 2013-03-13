@@ -1,0 +1,24 @@
+<assets>
+	<texture name="floor" file="floor.png" />
+	<texture name="editor_tile" file="editor_tile.png" />
+	<texture name="sc_logo" file="sc_logo.png" />
+	<texture name="sound_next" file="sound_next.png" />
+	<texture name="sound_on" file="sound_on.png" />
+	<texture name="sound_off" file="sound_off.png" />
+	<texture name="sound_waiting" file="sound_waiting.png" />
+	<texture name="player_frame1" file="player_frame1.png" />
+	<texture name="player_frame2" file="player_frame2.png" />
+	<texture name="wall" file="wall.png" />
+	<texture name="wall_end" file="wall_end.png" />
+	<texture name="star" file="star.png" />
+	<texture name="face" file="face.png" />
+	<texture name="face2" file="face2.png" />
+	<texture name="face3" file="face3.png" />
+	<texture name="face4" file="face4.png" />
+	<texture name="face5" file="face5.png" />
+	<texture name="face6" file="face6.png" />
+	<texture name="face7" file="face7.png" />
+	<texture name="face8" file="face8.png" />
+	<texture name="face9" file="face9.png" />
+	<texture name="face10" file="face10.png" />
+</assets>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with TexturePacker http://texturepacker.com-->
+<!-- $TexturePacker:SmartUpdate:15b2a0ba9cf39f1584638666e011e0ba$ -->
+<TextureAtlas imagePath="mainAtlas.png">
+    <SubTexture name="editor_tile" x="66" y="2" width="32" height="32"/>
+    <SubTexture name="face" x="53" y="51" width="9" height="10" frameX="-4" frameY="-3" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face10" x="53" y="39" width="9" height="10" frameX="-4" frameY="-3" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face2" x="42" y="51" width="9" height="10" frameX="-4" frameY="-3" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face3" x="42" y="39" width="9" height="10" frameX="-4" frameY="-3" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face4" x="31" y="51" width="9" height="10" frameX="-4" frameY="-3" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face5" x="2" y="39" width="9" height="12" frameX="-4" frameY="-1" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face6" x="102" y="34" width="7" height="10" frameX="-5" frameY="-3" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face7" x="100" y="20" width="9" height="12" frameX="-4" frameY="-2" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face8" x="118" y="2" width="7" height="12" frameX="-5" frameY="-2" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="face9" x="31" y="39" width="9" height="10" frameX="-4" frameY="-3" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="player_frame1" x="111" y="38" width="15" height="16" frameX="-1" frameY="0" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="player_frame2" x="111" y="20" width="15" height="16" frameX="-1" frameY="0" frameWidth="17" frameHeight="16"/>
+    <SubTexture name="sc_logo" x="2" y="2" width="62" height="35" frameX="0" frameY="0" frameWidth="64" frameHeight="35"/>
+    <SubTexture name="sound_next" x="13" y="39" width="16" height="16"/>
+    <SubTexture name="sound_off" x="100" y="2" width="16" height="16"/>
+    <SubTexture name="sound_on" x="84" y="36" width="16" height="16"/>
+    <SubTexture name="sound_waiting" x="66" y="36" width="16" height="16"/>
+    <SubTexture name="star" x="2" y="54" width="8" height="8"/>
+</TextureAtlas>
