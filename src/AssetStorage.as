@@ -37,7 +37,7 @@ package
 			} );*/
 			
 			//Loading main atlas
-			loadImage( "assets/
+			loadImage( "assets/mainAtlas.png", "mainAtlas",  );
 		}
 		
 		private function loadNext():void
