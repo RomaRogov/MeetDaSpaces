@@ -14,6 +14,7 @@ package editor
 	import starling.events.TouchEvent;
 	import starling.events.TouchPhase;
 	import starling.text.TextField;
+	import starling.textures.RenderTexture;
 	import starling.textures.Texture;
 	import util.FPSCounter;
 	/**
@@ -58,14 +59,18 @@ package editor
 		{
 			//floorTexture = AssetStorage.getTexture( "floor" );
 			
-			var tileTexture : Texture = AssetStorage.getTexture( "editor_tile" );
+			var tileAtlasImage : Image = new Image( AssetStorage.mainAtlas.getTexture( "editor_tile" ) );
+			
+			var tileTexture : RenderTexture = new RenderTexture( 32, 32 );
+			tileTexture.draw( tileAtlasImage );
 			tileTexture.repeat = true;
 			backTileImage = new Image( tileTexture );
 			backTileImage.width = Math.ceil( stage.stageWidth / 32 ) * 32;
 			backTileImage.height = Math.ceil( stage.stageHeight / 32 ) * 32;
 			addChild( backTileImage );
 			
-			currentTileImage = new Image( AssetStorage.getTexture( curTexName ) );
+			
+			currentTileImage = new Image( AssetStorage.mapAtlas.getTexture( curTexName ) );
 			currentTileImage.alpha = 0.5;
 			addChild( currentTileImage );
 			
@@ -119,7 +124,7 @@ package editor
 		
 		private function changeImage():void
 		{
-			currentTileImage.texture = AssetStorage.getTexture( curTexName );
+			currentTileImage.texture = AssetStorage.mapAtlas.getTexture( curTexName );
 		}
 		
 		private function onMouseMove( e:TouchEvent ):void
@@ -168,7 +173,7 @@ package editor
 					
 			if ( !hittedObject && Keyboarder.instance.isKeyPressed( Keyboard.Z ) )
 			{
-				var newTile : FloorMapTile = new FloorMapTile( AssetStorage.getTexture( curTexName ) );
+				var newTile : FloorMapTile = new FloorMapTile( AssetStorage.mapAtlas.getTexture( curTexName ) );
 				newTile.x = currentTileImage.x - shiftX;
 				newTile.y = currentTileImage.y - shiftY;
 				objectsContainer.addChild( newTile );

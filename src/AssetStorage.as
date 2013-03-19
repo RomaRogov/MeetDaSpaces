@@ -1,5 +1,6 @@
 package  
 {
+	import com.greensock.loading.data.VideoLoaderVars;
 	import com.greensock.loading.XMLLoader;
 	import flash.display.Bitmap;
 	import flash.display.BitmapData;
@@ -7,6 +8,7 @@ package
 	import flash.display.LoaderInfo;
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
+	import flash.net.FileFilter;
 	import flash.net.URLLoader;
 	import flash.net.URLRequest;
 	import flash.utils.Dictionary;
@@ -22,8 +24,8 @@ package
 		[Embed(source="../fonts/PressStart2P.ttf", embedAsCFF="false", fontFamily="PressStart2P")]
         public static const UbuntuRegular:Class;
 		
-		private static var mainAtlas : TextureAtlas;
-		private static var levelAtlas : TextureAtlas;
+		public static var mainAtlas : TextureAtlas;
+		public static var mapAtlas : TextureAtlas;
 		private var assetList : Vector.<Object> = new Vector.<Object>; //(for sounds and stuff..)?
 		
 		public function AssetStorage() 
@@ -37,7 +39,35 @@ package
 			} );*/
 			
 			//Loading main atlas
-			loadImage( "assets/mainAtlas.png", "mainAtlas",  );
+			loadAtlas( "assets/mainAtlas.xml", 
+				function( atlas : TextureAtlas ):void 
+				{
+					trace("main atlas loaded!");
+					mainAtlas = atlas;
+					loadAtlas( "e1m1/mapAtlas.xml", 
+						function( atlas : TextureAtlas ):void 
+						{
+							trace("map atlas loaded!");
+							mapAtlas = atlas;
+							dispatchEvent( new Event( Event.COMPLETE ) );
+						} );
+				} );
+		}
+		
+		//Loads XML and image and returns callback with TextureAtlas
+		private function loadAtlas( path : String, callback : Function ):void
+		{
+			var folderPath : String = path.slice( 0, path.lastIndexOf("/") + 1 );
+			var loader : URLLoader = new URLLoader( new URLRequest( path ) );
+			loader.addEventListener(Event.COMPLETE, function(e:Event):void {
+				var xml : XML = new XML(e.target.data);
+				loadImage( folderPath + xml.attribute( "imagePath" ), 
+					function( img : Bitmap ):void
+					{
+						var tex : Texture = Texture.fromBitmap( img, false );
+						callback( new TextureAtlas( tex, xml ) );
+					} );
+			} );
 		}
 		
 		private function loadNext():void
@@ -45,16 +75,16 @@ package
 			if ( assetList.length == 0 )
 			{
 				trace("complete! ^^");
-				dispatchEvent( new Event( Event.COMPLETE ) );
+				
 				return;
 			}
 			var currentAssetData : Object = assetList.shift();
 			trace( "loading " + currentAssetData.name + "..." );
-			loadImage( "assets/" + currentAssetData.file, currentAssetData.name, loadNext );
+			loadImage( "assets/" + currentAssetData.file,  loadNext );
 		}
 		
 		/* LOADS IMAGE AND RETURNS CALLBACK WITH BITMAP */
-		private function loadImage( path:String, name: String, callback : Function ):void
+		private function loadImage( path:String, callback : Function ):void
 		{
 			var loader : Loader = new Loader();
 			loader.load( new URLRequest( path ) );
@@ -64,11 +94,6 @@ package
 					//textures[name] = Texture.fromBitmapData( (e.target.content as Bitmap).bitmapData, false );
 					callback( e.target.content as Bitmap );
 				} );
-		}
-		
-		public static function getTexture( name : String ):Texture
-		{
-			return textures[name];
 		}
 		
 	}
