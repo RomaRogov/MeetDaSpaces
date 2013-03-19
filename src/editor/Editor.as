@@ -1,12 +1,17 @@
 package editor 
 {
 	import editor.tiles.FloorMapTile;
+	import flash.desktop.Clipboard;
+	import flash.desktop.ClipboardFormats;
 	import flash.display.Bitmap;
 	import flash.display.BitmapData;
+	import flash.events.KeyboardEvent;
 	import flash.events.MouseEvent;
 	import flash.geom.Matrix;
 	import flash.geom.Point;
 	import flash.ui.Keyboard;
+	import flash.utils.getDefinitionByName;
+	import flash.utils.getQualifiedClassName;
 	import starling.display.Image;
 	import starling.display.Sprite;
 	import starling.events.Event;
@@ -46,21 +51,38 @@ package editor
 		private var curTexName : String = "floor";
 		
 		private var fpsTF : TextField;
+		private var commandTF : TextField;
+		
+		private var resourcesLoaded : Boolean = false;
+		private var stageLoaded : Boolean = false;
+		private var inputMode : Boolean = false;
+		
+		public static var instance : Editor;
 		
 		public function Editor() 
 		{
-			addEventListener( Event.ADDED_TO_STAGE, function(e:*):void {
-				var assetStorage : AssetStorage = new AssetStorage();
-				assetStorage.addEventListener( Event.COMPLETE, onStage );
+			instance = this;
+			addEventListener( Event.ADDED_TO_STAGE, function(e:*):void { 
+				stageLoaded = true;
+				if ( resourcesLoaded ) 
+					Init();
 				} );
 		}
 		
-		private function onStage( e:* ):void
+		public function onResourcesLoaded():void
 		{
-			//floorTexture = AssetStorage.getTexture( "floor" );
-			
+			resourcesLoaded = true;
+				if ( stageLoaded )
+					Init();
+		}
+		
+		private function Init():void
+		{
 			var tileAtlasImage : Image = new Image( AssetStorage.mainAtlas.getTexture( "editor_tile" ) );
 			
+			//Preparing Image for background
+			//Hmm, small hack. I can't manipulate tex coords normally with atlas texture
+			//So, I'll render atlas texture to new RenderTexture. Hope it's not so expensive
 			var tileTexture : RenderTexture = new RenderTexture( 32, 32 );
 			tileTexture.draw( tileAtlasImage );
 			tileTexture.repeat = true;
@@ -68,21 +90,27 @@ package editor
 			backTileImage.width = Math.ceil( stage.stageWidth / 32 ) * 32;
 			backTileImage.height = Math.ceil( stage.stageHeight / 32 ) * 32;
 			addChild( backTileImage );
-			
-			
+			//Preparing Image for current tile
 			currentTileImage = new Image( AssetStorage.mapAtlas.getTexture( curTexName ) );
 			currentTileImage.alpha = 0.5;
 			addChild( currentTileImage );
-			
-			stage.addEventListener( TouchEvent.TOUCH, onMouseMove );
-			
+			//Container for level
 			addChild( objectsContainer = new Sprite() );
-			
+			//FPS counter
 			fpsTF = new TextField( 200, 30, "--.- FPS", "PressStart2P", 12, 0xFFFFFF );
 			fpsTF.hAlign = "left";
 			addChild( fpsTF );
+			//Command TF
+			commandTF = new TextField( stage.stageWidth, 30, "Press Enter for command", "PressStart2P", 12, 0xFFFFFF );
+			commandTF.hAlign = "left";
+			commandTF.x = 20;
+			commandTF.y = stage.stageHeight - 30;
+			addChild( commandTF );
 			
+			//Listeners
+			stage.addEventListener( TouchEvent.TOUCH, onMouseMove );
 			addEventListener( Event.ENTER_FRAME, onFrame );
+			Keyboarder.instance.addEventListener( KeyboardEvent.KEY_DOWN, processKeyEvents );
 		}
 		
 		private function onFrame( e:* ):void
@@ -113,17 +141,38 @@ package editor
 			currentTileImage.y = (shiftY % cellH) + Math.floor( ( mouseY - shiftY % cellH ) / cellH ) * cellH;
 			
 			fpsTF.text = FPSCounter.update();
-			
-			if ( Keyboarder.instance.isKeyPressed( Keyboard.NUMBER_1 ) )
-				curTexName = "floor";
-			if ( Keyboarder.instance.isKeyPressed( Keyboard.NUMBER_2 ) )
-				curTexName = "wall";
-			if ( Keyboarder.instance.isKeyPressed( Keyboard.NUMBER_3 ) )
-				curTexName = "wall_end";
 		}
 		
-		private function changeImage():void
+		private function processKeyEvents( e : KeyboardEvent ):void
 		{
+			switch ( e.keyCode )
+			{
+				case Keyboard.NUMBER_1 : curTexName = floorTextures[0]; break;
+				case Keyboard.NUMBER_2 : curTexName = wallTextures[0];  break;
+				case Keyboard.NUMBER_3 : curTexName = wallTextures[1];  break;
+				case Keyboard.ENTER : 
+					if ( inputMode )
+					{
+						inputMode = false;
+						//process command
+						if ( commandTF.text == "copy" )
+							saveLevel();
+						commandTF.text = "Press Enter for command";
+					}
+					else
+					{
+						inputMode = true;
+						commandTF.text = "";
+					}
+				break;
+			}
+			
+			if ( e.keyCode == Keyboard.BACKSPACE )
+				commandTF.text = commandTF.text.slice( 0, commandTF.text.length - 1 );
+				
+			if ( inputMode && (e.charCode > 0) && (e.charCode != 8) && (e.charCode != 13) )
+				commandTF.text += String.fromCharCode( e.charCode );
+			
 			currentTileImage.texture = AssetStorage.mapAtlas.getTexture( curTexName );
 		}
 		
@@ -180,6 +229,14 @@ package editor
 			}
 			if ( hittedObject && Keyboarder.instance.isKeyPressed( Keyboard.X ) )
 				hittedObject.removeFromParent( true );
+		}
+		
+		private function saveLevel():void
+		{
+			var str:String = "";
+			for ( var i:int = 0; i < objectsContainer.numChildren; i++ )
+				str += getQualifiedClassName( objectsContainer.getChildAt( i ) ) + "\n";
+			Clipboard.generalClipboard.setData( ClipboardFormats.TEXT_FORMAT, str );
 		}
 		
 	}

@@ -39,9 +39,12 @@ package
 		
 		public function LoginScreen() 
 		{
+			//Init starling and editor!
 			_starling = new Starling( Editor, stage );
 			_starling.start();
 			
+			var assetStorage : AssetStorage = new AssetStorage();
+			assetStorage.addEventListener( Event.COMPLETE, function(e:*):void { Editor.instance.onResourcesLoaded(); } );
 			addEventListener( Event.ADDED_TO_STAGE, function(e:*):void { Keyboarder.instance.stage = stage; } );
 			return;
 			
