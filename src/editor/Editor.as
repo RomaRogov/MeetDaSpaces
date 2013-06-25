@@ -1,6 +1,6 @@
 package editor 
 {
-	import editor.tiles.FloorMapTile;
+	import com.greensock.loading.core.DisplayObjectLoader;
 	import flash.desktop.Clipboard;
 	import flash.desktop.ClipboardFormats;
 	import flash.display.Bitmap;
@@ -9,9 +9,12 @@ package editor
 	import flash.events.MouseEvent;
 	import flash.geom.Matrix;
 	import flash.geom.Point;
+	import flash.net.URLLoader;
+	import flash.net.URLRequest;
 	import flash.ui.Keyboard;
 	import flash.utils.getDefinitionByName;
 	import flash.utils.getQualifiedClassName;
+	import starling.display.DisplayObject;
 	import starling.display.Image;
 	import starling.display.Sprite;
 	import starling.events.Event;
@@ -44,17 +47,19 @@ package editor
 		
 		private var backTileImage : Image;
 		private var currentTileImage : Image;
-		private var objectsContainer : Sprite;
 		
-		private var floorTextures : Array = [ "floor" ];
-		private var wallTextures : Array = [ "wall", "wall_end" ];
-		private var curTexName : String = "floor";
+		private var layerBack : Sprite; //under all
+		private var layerMiddle : Sprite; //between back and player
+		private var layerFront  : Sprite; //over all
+		private var currentLayer : Sprite;
+		
+		private var TexList : Vector.<String> = new Vector.<String>();
+		private var curTexIndex : int = 0;
+		private var curLevel : String = "e1m1";
 		
 		private var fpsTF : TextField;
 		private var commandTF : TextField;
 		
-		private var resourcesLoaded : Boolean = false;
-		private var stageLoaded : Boolean = false;
 		private var inputMode : Boolean = false;
 		
 		public static var instance : Editor;
@@ -62,22 +67,13 @@ package editor
 		public function Editor() 
 		{
 			instance = this;
-			addEventListener( Event.ADDED_TO_STAGE, function(e:*):void { 
-				stageLoaded = true;
-				if ( resourcesLoaded ) 
-					Init();
-				} );
-		}
-		
-		public function onResourcesLoaded():void
-		{
-			resourcesLoaded = true;
-				if ( stageLoaded )
-					Init();
+			addEventListener( Event.ADDED_TO_STAGE, Init );
 		}
 		
 		private function Init():void
 		{
+			loadLevel( curLevel );
+			
 			var tileAtlasImage : Image = new Image( AssetStorage.mainAtlas.getTexture( "editor_tile" ) );
 			
 			//Preparing Image for background
@@ -90,27 +86,39 @@ package editor
 			backTileImage.width = Math.ceil( stage.stageWidth / 32 ) * 32;
 			backTileImage.height = Math.ceil( stage.stageHeight / 32 ) * 32;
 			addChild( backTileImage );
+			//Layers for level
+			addChild( layerBack   = new Sprite() );
+			addChild( layerMiddle = new Sprite() );
+			addChild( layerFront  = new Sprite() );
+			layerBack.name = "back";
+			layerMiddle.name = "middle";
+			layerFront.name = "front";
+			currentLayer = layerBack;
 			//Preparing Image for current tile
-			currentTileImage = new Image( AssetStorage.mapAtlas.getTexture( curTexName ) );
+			currentTileImage = new Image( AssetStorage.mainAtlas.getTexture("star") );
 			currentTileImage.alpha = 0.5;
 			addChild( currentTileImage );
-			//Container for level
-			addChild( objectsContainer = new Sprite() );
 			//FPS counter
-			fpsTF = new TextField( 200, 30, "--.- FPS", "PressStart2P", 12, 0xFFFFFF );
+			fpsTF = new TextField( 500, 30, "--.- FPS", "PressStart2P", 12, 0xFFFFFF );
 			fpsTF.hAlign = "left";
 			addChild( fpsTF );
 			//Command TF
 			commandTF = new TextField( stage.stageWidth, 30, "Press Enter for command", "PressStart2P", 12, 0xFFFFFF );
 			commandTF.hAlign = "left";
 			commandTF.x = 20;
-			commandTF.y = stage.stageHeight - 30;
 			addChild( commandTF );
 			
 			//Listeners
 			stage.addEventListener( TouchEvent.TOUCH, onMouseMove );
 			addEventListener( Event.ENTER_FRAME, onFrame );
+			addEventListener( Event.RESIZE, onResize );
 			Keyboarder.instance.addEventListener( KeyboardEvent.KEY_DOWN, processKeyEvents );
+		}
+		
+		private function onResize( e:* ):void
+		{
+			backTileImage.width = Math.ceil( stage.stageWidth / 32 ) * 32;
+			backTileImage.height = Math.ceil( stage.stageHeight / 32 ) * 32;
 		}
 		
 		private function onFrame( e:* ):void
@@ -121,15 +129,15 @@ package editor
 			/* SCROLL BACKROUND */
 			var horRepeat : int = Math.ceil( stage.stageWidth  / cellW );
 			var verRepeat : int = Math.ceil( stage.stageHeight / cellH );
-			var horTextureShift : Number = (-shiftX % cellW) / cellW;
-			var verTextureShift : Number = (-shiftY % cellH) / cellH;
+			var horTextureShift : Number = (-Math.round(shiftX) % cellW) / cellW;
+			var verTextureShift : Number = (-Math.round(shiftY) % cellH) / cellH;
 			backTileImage.setTexCoords( 0, new Point(             horTextureShift,             verTextureShift ) );
 			backTileImage.setTexCoords( 1, new Point( horTextureShift + horRepeat,             verTextureShift ) );
 			backTileImage.setTexCoords( 2, new Point(             horTextureShift, verTextureShift + verRepeat ) );
 			backTileImage.setTexCoords( 3, new Point( horTextureShift + horRepeat, verTextureShift + verRepeat ) );
 			
-			objectsContainer.x = shiftX;
-			objectsContainer.y = shiftY;
+			layerBack.x = layerMiddle.x = layerFront.x = Math.round( shiftX );
+			layerBack.y = layerMiddle.y = layerFront.y = Math.round( shiftY );
 			
 			shiftX += shiftSpeedX;
 			shiftY += shiftSpeedY;
@@ -140,16 +148,19 @@ package editor
 			currentTileImage.x = (shiftX % cellW) + Math.floor( ( mouseX - shiftX % cellW ) / cellW ) * cellW;
 			currentTileImage.y = (shiftY % cellH) + Math.floor( ( mouseY - shiftY % cellH ) / cellH ) * cellH;
 			
-			fpsTF.text = FPSCounter.update();
+			fpsTF.text = FPSCounter.update() + "\n" + curLevel + " | Layer: " + currentLayer.name;
+			commandTF.y = stage.stageHeight - 30;
 		}
 		
 		private function processKeyEvents( e : KeyboardEvent ):void
 		{
 			switch ( e.keyCode )
 			{
-				case Keyboard.NUMBER_1 : curTexName = floorTextures[0]; break;
-				case Keyboard.NUMBER_2 : curTexName = wallTextures[0];  break;
-				case Keyboard.NUMBER_3 : curTexName = wallTextures[1];  break;
+				case Keyboard.A : curTexIndex = ( curTexIndex > 0 ) ? curTexIndex-1 : TexList.length-1; break; //prev sprite
+				case Keyboard.S : curTexIndex = ( curTexIndex < (TexList.length - 1) ) ? curTexIndex + 1 : 0;  break; //next sprite
+				case Keyboard.NUMBER_1 : currentLayer = layerBack; break; //back layer
+				case Keyboard.NUMBER_2 : currentLayer = layerMiddle; break; //middle layer
+				case Keyboard.NUMBER_3 : currentLayer = layerFront; break; //front layer
 				case Keyboard.ENTER : 
 					if ( inputMode )
 					{
@@ -157,6 +168,12 @@ package editor
 						//process command
 						if ( commandTF.text == "copy" )
 							saveLevel();
+						if ( commandTF.text.indexOf( "load" ) > -1 )
+							loadLevel( commandTF.text.split(" ")[1] );
+						if ( commandTF.text == "clear" )
+							clearLevel();
+						if ( commandTF.text == "zeropos" )
+							shiftX = shiftY = 0;
 						commandTF.text = "Press Enter for command";
 					}
 					else
@@ -173,7 +190,7 @@ package editor
 			if ( inputMode && (e.charCode > 0) && (e.charCode != 8) && (e.charCode != 13) )
 				commandTF.text += String.fromCharCode( e.charCode );
 			
-			currentTileImage.texture = AssetStorage.mapAtlas.getTexture( curTexName );
+			currentTileImage.texture = AssetStorage.mapAtlas.getTexture( TexList[curTexIndex] );
 		}
 		
 		private function onMouseMove( e:TouchEvent ):void
@@ -218,14 +235,16 @@ package editor
 		
 		private function addTile():void
 		{
-			var hittedObject : MapTile = objectsContainer.hitTest( new Point( currentTileImage.x - shiftX + 16, currentTileImage.y - shiftY + 16 ) ) as MapTile;
+			var hittedObject : MapTile = currentLayer.hitTest( new Point( currentTileImage.x - shiftX + 16, currentTileImage.y - shiftY + 16 ) ) as MapTile;
 					
 			if ( !hittedObject && Keyboarder.instance.isKeyPressed( Keyboard.Z ) )
 			{
-				var newTile : FloorMapTile = new FloorMapTile( AssetStorage.mapAtlas.getTexture( curTexName ) );
+				var newTile : MapTile = new MapTile( AssetStorage.mapAtlas.getTexture( TexList[curTexIndex] ) );
 				newTile.x = currentTileImage.x - shiftX;
 				newTile.y = currentTileImage.y - shiftY;
-				objectsContainer.addChild( newTile );
+				newTile.texName = TexList[curTexIndex];
+				currentLayer.addChild( newTile );
+				newTile = null;
 			}
 			if ( hittedObject && Keyboarder.instance.isKeyPressed( Keyboard.X ) )
 				hittedObject.removeFromParent( true );
@@ -233,12 +252,90 @@ package editor
 		
 		private function saveLevel():void
 		{
-			var str:String = "";
-			for ( var i:int = 0; i < objectsContainer.numChildren; i++ )
-				str += getQualifiedClassName( objectsContainer.getChildAt( i ) ) + "\n";
+			//Back layer
+			var str:String = "{ \"back\" : [\n";
+			for ( var i:int = 0; i < layerBack.numChildren; i++ )
+				str += "{ \"x\":"
+						+ Math.round( layerBack.getChildAt( i ).x )+ ", \"y\":"
+						+ Math.round( layerBack.getChildAt( i ).y )+ ", \"img\":\""
+						+ MapTile(layerBack.getChildAt( i )).texName + "\" }"
+						+ ((i==(layerBack.numChildren-1)) ? "\n" : ", \n");
+			str += " ],\n";
+			//Middle layer
+			str += "\"middle\" : [\n";
+			for ( i = 0; i < layerMiddle.numChildren; i++ )
+				str += "{  \"x\":"
+						+ Math.round( layerMiddle.getChildAt( i ).x )+ ", \"y\":"
+						+ Math.round( layerMiddle.getChildAt( i ).y )+ ", \"img\":\""
+						+ MapTile(layerMiddle.getChildAt( i )).texName + "\" }"
+						+ ((i==(layerMiddle.numChildren-1)) ? "\n" : ", \n");
+			str += " ],\n";
+			//Front layer
+			str += "\"front\" : [\n";
+			for ( i = 0; i < layerFront.numChildren; i++ )
+				str += "{  \"x\":"
+						+ Math.round( layerFront.getChildAt( i ).x ) + ", \"y\":"
+						+ Math.round( layerFront.getChildAt( i ).y )+ ", \"img\":\""
+						+ MapTile(layerFront.getChildAt( i )).texName + "\" }"
+						+ ((i==(layerFront.numChildren-1)) ? "\n" : ", \n");
+			str += " ] }\n";
 			Clipboard.generalClipboard.setData( ClipboardFormats.TEXT_FORMAT, str );
 		}
 		
+		private function loadLevel( levelName : String ):void
+		{
+			curLevel = levelName;
+			AssetStorage.loadLevelAtlas( curLevel, function():void 
+				{
+					var loader : URLLoader = new URLLoader( new URLRequest( curLevel +  "/level.txt" ) );
+					loader.addEventListener( Event.COMPLETE, parseLevel );
+				} );
+		}
+		
+		private function parseLevel( e : flash.events.Event ):void
+		{
+			clearLevel();
+			
+			//Parse level data and create objects
+			var level : Object = JSON.parse( String( e.target.data ) );
+			
+			fillLayer( level.back, layerBack );
+			fillLayer( level.middle, layerMiddle );
+			fillLayer( level.front, layerFront );
+			
+			TexList = AssetStorage.mapAtlas.getNames();
+			curTexIndex = 0;
+			currentTileImage.texture = AssetStorage.mapAtlas.getTexture( TexList[curTexIndex] );
+			currentTileImage.width = currentTileImage.texture.nativeWidth;
+			currentTileImage.height = currentTileImage.texture.nativeHeight;
+		}
+		
+		private function fillLayer( tiles : Array, layer : Sprite ):void
+		{
+			for each ( var tile : Object in tiles )
+			{
+				var newTile : MapTile = new MapTile( AssetStorage.mapAtlas.getTexture( tile.img ) );
+				newTile.x = tile.x;
+				newTile.y = tile.y;
+				newTile.texName = tile.img;
+				layer.addChild( newTile );
+				newTile = null;
+			}
+		}
+		
+		private function clearLevel():void
+		{
+			//Clear current level
+			var removeList : Vector.<DisplayObject> = new Vector.<DisplayObject>();
+			for ( var i:int = 0; i < layerBack.numChildren; i++ )
+				removeList.push( layerBack.getChildAt( i ) );
+			for ( i = 0; i < layerMiddle.numChildren; i++ )
+				removeList.push( layerMiddle.getChildAt( i ) );
+			for ( i = 0; i < layerFront.numChildren; i++ )
+				removeList.push( layerFront.getChildAt( i ) );
+			for each ( var child : DisplayObject in removeList )
+				child.removeFromParent( true );
+		}
 	}
 
 }

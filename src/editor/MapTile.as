@@ -9,6 +9,8 @@ package editor
 	 */
 	public class MapTile extends Image
 	{
+		public var type : String = "floor";
+		public var texName : String;
 		
 		public function MapTile( tex : Texture ) 
 		{

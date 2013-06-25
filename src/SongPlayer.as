@@ -35,6 +35,9 @@ package
 		
 		private function switchSound( e:* ):void
 		{
+			if ( !_channel )
+				return;
+				
 			_interface.soundSwitcher.gotoAndStop( _interface.soundSwitcher.currentFrame == 1 ? 2 : 1 );
 			if ( _interface.soundSwitcher.currentFrame == 2 )
 			{
@@ -55,7 +58,8 @@ package
 		
 		private function onNextSong( e:* ):void 
 		{
-			_channel.stop();
+			if ( _channel )
+				_channel.stop();
 			onSongComplete();
 		}
 		
@@ -73,7 +77,8 @@ package
 				var selectedTrack : Object = tracks[Math.floor(Math.random() * tracks.length)];
 				_song = SoundCloudUtils.GetSound( selectedTrack );
 				_channel = _song.play();
-				_channel.addEventListener(Event.SOUND_COMPLETE, onSongComplete );
+				if ( _channel )
+					_channel.addEventListener(Event.SOUND_COMPLETE, onSongComplete );
 				
 				_interface.authorNameTF.text = selectedTrack.user.username;
 				_interface.songNameTF.text = selectedTrack.title;

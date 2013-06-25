@@ -25,6 +25,12 @@ package
 	import model.ChatEvent;
 	import model.MoveEvent;
 	import model.PushEvent;
+	import starling.display.Image;
+	import view.FlyingMessage;
+	import view.Level;
+	import view.StarlingScreens;
+	import view.Player;
+	import view.StarSpace;
 	
 	/**
 	 * ...
@@ -37,11 +43,9 @@ package
 		private var _bodyColor : uint;
 		private var _faceColor : uint;
 		private var _players : Vector.<Player>;
-		private var _starField : StarSpace;
-		private var _level : Levels;
 		private var _songPlayer : SongPlayer;
 		private var _chat : ChatInterface;
-		
+		private var _level : Level;
 		private var _peer : LoadBalancedPeer;
 		
 		public function Main( login : String, bodyColor : uint, faceColor : uint ):void 
@@ -53,45 +57,23 @@ package
 			if (stage) init();
 			else addEventListener(Event.ADDED_TO_STAGE, init);
 			
-			_peer = PhotonPeer.getInstance();
-			//We are connected. Next step - set listeners and get game list
-			PhotonPeer.getInstance().addEventListener(GameListEvent.TYPE, onGameList );
-			_peer.addEventListener( ChatEvent.TYPE, applyChatMessage );
-			_peer.addEventListener( MoveEvent.TYPE, onPlayerMoved );
-			_peer.addEventListener( PushEvent.TYPE, onPlayerPush );
-			
-			Utils.serverLog( _login + " entered the game!" );
+			//Init R.O.O.M.
 		}
 		
 		private function init(e:Event = null):void 
 		{
-			removeEventListener(Event.ADDED_TO_STAGE, init);
-			// entry point
 			stage.scaleMode = StageScaleMode.NO_SCALE;
 			stage.align = StageAlign.TOP_LEFT;
+			removeEventListener(Event.ADDED_TO_STAGE, init);
 			
-			//Create starfield
-			_starField = new StarSpace( 60, stage.stageWidth, stage.stageHeight );
-			_starField.x = _starField.y = 0;
-			addChild( _starField );
-			
-			//Then - level
-			_level = new Levels();
-			addChild( _level );
-			LevelColliders.refreshColliders( _level.blocks_level_1 );
-			_level.removeChild( _level.blocks_level_1 );
-			_level.level_1.cacheAsBitmap = true;
-			
-			//Player on level
-			_player = new Player( true, _login );
-			_player.x = stage.stageWidth / 2;
-			_player.y = stage.stageHeight / 2;
-			addChild( _player );
+			//Create level with player
+			_level = new Level( "e1m1", _player = new Player( true, _login ) );
+			StarlingScreens.SetScreen( _level );
 			
 			//And interfaces at top
 			_chat = new ChatInterface();
 			_chat.playerCountTF.text = "Дохуя народу, впринципе";
-			_chat.chatView.chatTF.htmlText = "Ну привет.";
+			_chat.chatView.chatTF.htmlText = "";
 			_chat.messageTF.text = "";
 			_chat.scaleX = _chat.scaleY = 1.5;
 			_chat.y = stage.stageHeight;
@@ -105,26 +87,26 @@ package
 		
 		private function onResize( e:* ):void
 		{
-			_player.x = stage.stageWidth / 2;
-			_player.y = stage.stageHeight / 2;
 			//_chat.scaleX = _chat.scaleY = (stage.stageWidth / _chat.width);
 			_chat.y = stage.stageHeight;
+			
+			StarSpace.instance.setSize( stage.stageWidth, stage.stageHeight );
 		}
 		
 		private function onFrame( e:* ):void
 		{
-			if ( !stage || !_player )
+			if ( !stage )
 				return;
-			
-			//Movement of the player
-			_level.x = stage.stageWidth / 2 - _player.playerX;
-			_level.y = stage.stageHeight / 2 - _player.playerY;
-			//We are flying at space, yeah?
-			_starField.moveStars( 1, 0 );
 			
 			//Send chat message
 			if ( Keyboarder.instance.isKeyPressed( Keyboard.ENTER ) && _chat.messageTF.text != "" )
 			{
+				if ( _chat.messageTF.text.indexOf( "load" ) > -1 )
+				{
+					_level.loadLevel( _chat.messageTF.text.split(" ")[1] );
+					_chat.messageTF.text = "";
+					return;
+				}
 				//Preparing data
 				var data : Dictionary = new Dictionary();
 				data["message"] = _chat.messageTF.text;
@@ -135,8 +117,10 @@ package
 				//View side
 				addChatLine( _player.bodyColor, 0xFFFFFF, _player.playerName, _chat.messageTF.text );
 				_player.parseEmotion( _chat.messageTF.text );
-				var pos : Point = _level.globalToLocal( localToGlobal( new Point( _player.x + 16, _player.y - 48 ) ) )
-				new FlyingMessage( pos.x, pos.y, _player.playerName + ": " + _chat.messageTF.text, _level );
+				//TODO: Flying message
+				/*var pos : Point = _level.globalToLocal( localToGlobal( new Point( _player.x + 16, _player.y - 48 ) ) )
+				new FlyingMessage( pos.x, pos.y, _player.playerName + ": " + _chat.messageTF.text, _level );*/
+				FlyingMessage.show( _player.playerX, _player.playerY - 48, _player.playerName + ": " + _chat.messageTF.text, _level.layerPlayer );
 				_chat.messageTF.text = "";
 			}
 		}
@@ -157,39 +141,45 @@ package
 		{
 			var currentPlayer : Player = getPlayerByActorNo( e.actorNo );
 			currentPlayer.parseEmotion( e.message );
-			new FlyingMessage( currentPlayer.x + 16, currentPlayer.y - 48, e.nickName + ": " + e.message, _level );
+			//TODO: Flying message
+			FlyingMessage.show( currentPlayer.x + 16, currentPlayer.y - 48, e.nickName + ": " + e.message, _level );
+
+			addChatLine( e.color, 0xFFFFFF, e.nickName, e.message );
+			
 			var channel : SoundChannel = (new ChatMessageSound()).play();
 			var vol : Number = 1.0 - (new Point( _player.playerX, _player.playerY ).subtract( new Point( currentPlayer.x, currentPlayer.y ) ).length / 1000);
 			if ( vol < 0 )
 				vol = 0;
-			trace(vol);
-			channel.soundTransform = new SoundTransform( vol, 0 );
-			addChatLine( e.color, 0xFFFFFF, e.nickName, e.message );
+			if ( channel )
+				channel.soundTransform = new SoundTransform( vol, 0 );
 		}
 		
 		private function onGameList( e : GameListEvent ):void
 		{
 			var list:Vector.<GameListEntry> = PhotonPeer.getInstance().getGameList();
 			trace("So, we are connected. Game list (" + PhotonPeer.getInstance().getNumberOfGames() + " entries):" );
-			if ( list.length > 0 )
+			
+			var roomExists : Boolean = false;
+			for each ( var game : GameListEntry in list )
+				if ( game.roomName == _level.curLevel )
+					roomExists = true;
+			
+			if ( roomExists )
 			{
-				//Show list
-				for each ( var game : GameListEntry in list )
-					trace( game.roomName );
-				//Temporary solution: join first room				
+				//Room exists, connect
 				generateNameAndStoreAsActorProperty();
 				PhotonPeer.getInstance().opJoinGame( list[0].roomName );
 			}
 			else
 			{
-				//No games, create the one
+				//Room don't exists, create room with level name
 				var gp:GameProperties = GameProperties.createDefault();
 				gp.customProperties = new Dictionary();
 				gp.customProperties["starHolderId"] = _player.name;
 				
 				generateNameAndStoreAsActorProperty();
 				
-				PhotonPeer.getInstance().opCreateGame( "level1", gp );
+				PhotonPeer.getInstance().opCreateGame( _level.curLevel, gp );
 			}
 		}
 		
@@ -268,14 +258,14 @@ package
 			newPlayer.bodyColor = props.customProperties["bodyColor"];
 			newPlayer.faceColor = props.customProperties["faceColor"];
 			_players.push( newPlayer );
-			_level.addChild( newPlayer );
+			_level.addPlayer( newPlayer );
 		}
 		
 		private function onActorLeaved( e: LeaveEvent ):void
 		{
 			trace( "Leaved: " + PhotonPeer.getInstance().getActorPropertiesByActorNo(e.getActorNo()).actorName );
 			var currentPlayer : Player = getPlayerByActorNo( e.getActorNo() );
-			_level.removeChild( currentPlayer );
+			currentPlayer.removeFromParent( true );
 			_players.splice( _players.indexOf( currentPlayer ), 1 );
 			
 			_chat.playerCountTF.text = "Сейчас где-то гуляет " + PhotonPeer.getInstance().getActorNumbers().length + " человек(а).";
@@ -313,7 +303,6 @@ package
 				
 			return currentPlayer;
 		}
-		
 	}
 	
 }

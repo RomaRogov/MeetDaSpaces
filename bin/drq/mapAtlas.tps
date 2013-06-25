@@ -147,7 +147,6 @@
             <filename>spawn.png</filename>
             <filename>xyu.png</filename>
             <filename>wires.png</filename>
-            <filename>teleport_e1m2.png</filename>
         </array>
         <key>ignoreFileList</key>
         <array/>

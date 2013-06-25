@@ -50,12 +50,12 @@
   </includeLibraries>
   <!-- SWC Libraries -->
   <libraryPaths>
-    <element path="MeetDaSpaces.swc" />
     <element path="lib\PhotonCoreAS3.swc" />
     <element path="lib\PhotonLoadBalancingAS3.swc" />
     <element path="lib\as3crypto.swc" />
     <element path="lib\greensock.swc" />
     <element path="lib\starling.swc" />
+    <element path="interfaces.swc" />
   </libraryPaths>
   <!-- External Libraries -->
   <externalLibraryPaths>
@@ -87,7 +87,7 @@
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
   <options>
-    <option showHiddenPaths="False" />
+    <option showHiddenPaths="True" />
     <option testMovie="Default" />
   </options>
   <!-- Plugin storage -->

@@ -10,6 +10,8 @@ package
 	import flash.display.MovieClip;
 	import flash.display.Shape;
 	import flash.display.Sprite;
+	import flash.display.StageAlign;
+	import flash.display.StageScaleMode;
 	import flash.events.Event;
 	import flash.events.MouseEvent;
 	import flash.events.TextEvent;
@@ -25,6 +27,7 @@ package
 	import flash.utils.getTimer;
 	import starling.core.Starling;
 	import util.FPSCounter;
+	import view.StarlingScreens;
 	/**
 	 * ...
 	 * @author qwfd
@@ -39,26 +42,18 @@ package
 		
 		public function LoginScreen() 
 		{
-			//Init starling and editor!
-			_starling = new Starling( Editor, stage );
-			_starling.start();
-			
-			var assetStorage : AssetStorage = new AssetStorage();
-			assetStorage.addEventListener( Event.COMPLETE, function(e:*):void { Editor.instance.onResourcesLoaded(); } );
-			addEventListener( Event.ADDED_TO_STAGE, function(e:*):void { Keyboarder.instance.stage = stage; } );
-			return;
-			
 			_interface = new LoginInterface();
 			addChild( _interface );
 			
 			_interface.loginField.text = "";
 			_interface.loginBtn["textTF"].text = "Космос";
 			_interface.vkBtn["textTF"].text = "ВКонтакте";
+			_interface.editBtn["textTF"].text = "Захуярить";
 			_interface.colorBtn["textTF"].text = "Сменить цвет";
 			_interface.player.nameTF.text = "Введите логин";
-			_interface.player.face.gotoAndStop(0);
-			_interface.loginBtn.addEventListener( MouseEvent.CLICK, onLogin );
+			//_interface.player.face.gotoAndStop(0);
 			_interface.vkBtn.addEventListener( MouseEvent.CLICK, function(e:*):void { navigateToURL( new URLRequest("http://vk.com/zoyge"), "_blank" ); } );
+			_interface.editBtn.addEventListener( MouseEvent.CLICK, enterEditor );
 			_interface.colorBtn.addEventListener( MouseEvent.CLICK, regenColor );
 			_interface.loginField.addEventListener( TextEvent.TEXT_INPUT, nickChanged );
 			
@@ -73,7 +68,12 @@ package
 			
 			Utils.serverLog( "Someone opened the game" );
 			
-			
+			//Init starling
+			addEventListener( Event.ADDED_TO_STAGE, function(e:*):void { 
+				Keyboarder.instance.stage = stage;
+				StarlingScreens.Init( stage );
+				AssetStorage.Init( function():void { _interface.loginBtn.addEventListener( MouseEvent.CLICK, onLogin ); } );
+				} );
 		}
 		
 		private function bodyColorChanged( e: TextEvent ):void
@@ -92,8 +92,6 @@ package
 		
 		private function onLogin( e:* ):void
 		{
-			removeChild( _interface );
-			
 			if ( _interface.loginField.text == "" )
 				return;
 				
@@ -114,6 +112,14 @@ package
 			peer.establishBalancedConnection(server, port, policyPort, applicationId, applicationVersion);
 			
 			peer.addEventListener(LoadBalancingStateEvent.CONNECTED_TO_MASTER, onConnectionSuccess );
+		}
+		
+		private function enterEditor( e : * ):void
+		{
+			removeChild( _interface );
+			
+			_interface.editBtn["textTF"].text = "Ща, погодь...";
+			StarlingScreens.SetScreen( new Editor() );
 		}
 		
 		private function nickChanged( e : TextEvent ):void
@@ -144,7 +150,7 @@ package
 			var bodyr:uint = ((val & 0xFF0000) >> 16);
 			var bodyg:uint = ((val & 0x00FF00) >>  8);
 			var bodyb:uint = ((val & 0x0000FF)      );
-			_interface.player.body.transform.colorTransform = new ColorTransform( 1, 1, 1, 1, -255 + bodyr, -255 + bodyg, -255 + bodyb );
+			//_interface.player.body.transform.colorTransform = new ColorTransform( 1, 1, 1, 1, -255 + bodyr, -255 + bodyg, -255 + bodyb );
 		}
 		public function get bodyColor():uint { return _bodyColor; }
 		
@@ -155,7 +161,7 @@ package
 			var facer:uint = ((val & 0xFF0000) >> 16);
 			var faceg:uint = ((val & 0x00FF00) >>  8);
 			var faceb:uint = ((val & 0x0000FF)      );
-			_interface.player.face.transform.colorTransform = new ColorTransform( 1, 1, 1, 1, -255 + facer, -255 + faceg, -255 + faceb );
+			//_interface.player.face.transform.colorTransform = new ColorTransform( 1, 1, 1, 1, -255 + facer, -255 + faceg, -255 + faceb );
 		}
 	}
 

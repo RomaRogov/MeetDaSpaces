@@ -141,13 +141,12 @@
         </struct>
         <key>fileList</key>
         <array>
-            <filename>../assets/wall.png</filename>
-            <filename>../assets/wall_end.png</filename>
-            <filename>../assets/floor.png</filename>
+            <filename>wall.png</filename>
+            <filename>wall_end.png</filename>
+            <filename>floor.png</filename>
+            <filename>wall_barell.png</filename>
+            <filename>teleport.png</filename>
             <filename>spawn.png</filename>
-            <filename>xyu.png</filename>
-            <filename>wires.png</filename>
-            <filename>teleport_e1m2.png</filename>
         </array>
         <key>ignoreFileList</key>
         <array/>

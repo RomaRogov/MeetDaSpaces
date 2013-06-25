@@ -28,34 +28,32 @@ package
 		public static var mapAtlas : TextureAtlas;
 		private var assetList : Vector.<Object> = new Vector.<Object>; //(for sounds and stuff..)?
 		
-		public function AssetStorage() 
+		public static function Init( callback : Function ):void
 		{
-			/*var loader : URLLoader = new URLLoader( new URLRequest( "assets/fileList.xml" ) );
-			loader.addEventListener(Event.COMPLETE, function(e:Event):void {
-				var xml : XML = new XML(e.target.data);
-				for each ( var asset : XML in xml.texture )
-					assetList.push( { name : asset.attribute("name"), file : asset.attribute("file") } );
-				loadNext();
-			} );*/
-			
 			//Loading main atlas
 			loadAtlas( "assets/mainAtlas.xml", 
 				function( atlas : TextureAtlas ):void 
 				{
 					trace("main atlas loaded!");
 					mainAtlas = atlas;
-					loadAtlas( "e1m1/mapAtlas.xml", 
-						function( atlas : TextureAtlas ):void 
-						{
-							trace("map atlas loaded!");
-							mapAtlas = atlas;
-							dispatchEvent( new Event( Event.COMPLETE ) );
-						} );
+					if ( callback != null )
+						callback();
 				} );
 		}
 		
+		public static function loadLevelAtlas( levelName : String, callback : Function ):void
+		{
+			loadAtlas( levelName + "/mapAtlas.xml", 
+						function( atlas : TextureAtlas ):void 
+						{
+							trace("map atlas for", levelName, "loaded!");
+							mapAtlas = atlas;
+							callback();
+						} );
+		}
+		
 		//Loads XML and image and returns callback with TextureAtlas
-		private function loadAtlas( path : String, callback : Function ):void
+		private static function loadAtlas( path : String, callback : Function ):void
 		{
 			var folderPath : String = path.slice( 0, path.lastIndexOf("/") + 1 );
 			var loader : URLLoader = new URLLoader( new URLRequest( path ) );
@@ -70,30 +68,13 @@ package
 			} );
 		}
 		
-		private function loadNext():void
-		{
-			if ( assetList.length == 0 )
-			{
-				trace("complete! ^^");
-				
-				return;
-			}
-			var currentAssetData : Object = assetList.shift();
-			trace( "loading " + currentAssetData.name + "..." );
-			loadImage( "assets/" + currentAssetData.file,  loadNext );
-		}
-		
 		/* LOADS IMAGE AND RETURNS CALLBACK WITH BITMAP */
-		private function loadImage( path:String, callback : Function ):void
+		private static function loadImage( path:String, callback : Function ):void
 		{
 			var loader : Loader = new Loader();
 			loader.load( new URLRequest( path ) );
 			loader.contentLoaderInfo.addEventListener( Event.COMPLETE, 
-				function OnComplete( e:Event ):void
-				{
-					//textures[name] = Texture.fromBitmapData( (e.target.content as Bitmap).bitmapData, false );
-					callback( e.target.content as Bitmap );
-				} );
+				function OnComplete( e:Event ):void { callback( e.target.content as Bitmap ); } );
 		}
 		
 	}
