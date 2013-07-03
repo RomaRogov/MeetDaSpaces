@@ -132,6 +132,7 @@ package
 			var gameCycle : Main = new Main( _interface.loginField.text, _bodyColor, _faceColor );
 			removeChild( _interface );
 			addChild( gameCycle );
+			PhotonPeer.getInstance().removeEventListener(LoadBalancingStateEvent.CONNECTED_TO_MASTER, onConnectionSuccess );
 		}
 		
 		public function regenColor( e:* ):void

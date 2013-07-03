@@ -202,15 +202,18 @@ package view
 		private function netMoving():void
 		{
 			if ( _moveSpeed.length > 0 || _pushSpeed.length > 0 )
-			{
-				//Preparing data
-				var data : Dictionary = new Dictionary();
-				data["x"] = _targetPos.x;
-				data["y"] = _targetPos.y;
-				data[Constants.KEY_ACTOR_NO] = PhotonPeer.getInstance().getActorNo();
-				PhotonPeer.getInstance().opRaiseEventWithCode( PhotonPeer.CODE_PLAYERMOVE, data );
-			}
-			setTimeout( netMoving, 200 );
+				sendPlaceByNet();
+			setTimeout( netMoving, 50 );
+		}
+		
+		public function sendPlaceByNet():void
+		{
+			//Preparing data
+			var data : Dictionary = new Dictionary();
+			data["x"] = _targetPos.x;
+			data["y"] = _targetPos.y;
+			data[Constants.KEY_ACTOR_NO] = PhotonPeer.getInstance().getActorNo();
+			PhotonPeer.getInstance().opRaiseEventWithCode( PhotonPeer.CODE_PLAYERMOVE, data );
 		}
 		
 		private function onFrame( e:* ):void

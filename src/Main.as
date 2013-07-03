@@ -10,6 +10,7 @@ package
 	import de.exitgames.photon_as3.loadBalancing.model.vo.ActorProperties;
 	import de.exitgames.photon_as3.loadBalancing.model.vo.GameListEntry;
 	import de.exitgames.photon_as3.loadBalancing.model.vo.GameProperties;
+	import de.exitgames.photon_as3.PhotonCore;
 	import de.exitgames.photon_as3.response.InitializeConnectionResponse;
 	import flash.display.Sprite;
 	import flash.display.StageAlign;
@@ -25,6 +26,7 @@ package
 	import model.ChatEvent;
 	import model.MoveEvent;
 	import model.PushEvent;
+	import model.Room;
 	import starling.display.Image;
 	import view.FlyingMessage;
 	import view.Level;
@@ -42,11 +44,10 @@ package
 		private var _login : String;
 		private var _bodyColor : uint;
 		private var _faceColor : uint;
-		private var _players : Vector.<Player>;
 		private var _songPlayer : SongPlayer;
 		private var _chat : ChatInterface;
 		private var _level : Level;
-		private var _peer : LoadBalancedPeer;
+		private var _room : Room;
 		
 		public function Main( login : String, bodyColor : uint, faceColor : uint ):void 
 		{
@@ -57,7 +58,8 @@ package
 			if (stage) init();
 			else addEventListener(Event.ADDED_TO_STAGE, init);
 			
-			//Init R.O.O.M.
+			//Waiting for room list...
+			PhotonPeer.getInstance().addEventListener( GameListEvent.TYPE, onGameList );
 		}
 		
 		private function init(e:Event = null):void 
@@ -66,8 +68,13 @@ package
 			stage.align = StageAlign.TOP_LEFT;
 			removeEventListener(Event.ADDED_TO_STAGE, init);
 			
-			//Create level with player
-			_level = new Level( "e1m1", _player = new Player( true, _login ) );
+			//Create player
+			_player = new Player( true, _login )
+			_player.faceColor = _faceColor;
+			_player.bodyColor = _bodyColor;
+			
+			//Create level
+			_level = new Level( "e1m1", _player );
 			StarlingScreens.SetScreen( _level );
 			
 			//And interfaces at top
@@ -103,16 +110,13 @@ package
 			{
 				if ( _chat.messageTF.text.indexOf( "load" ) > -1 )
 				{
-					_level.loadLevel( _chat.messageTF.text.split(" ")[1] );
+					var roomNam : String = _chat.messageTF.text.split(" ")[1];
+					_level.loadLevel( roomNam );
+					//setNewRoom( roomNam );
 					_chat.messageTF.text = "";
 					return;
 				}
-				//Preparing data
-				var data : Dictionary = new Dictionary();
-				data["message"] = _chat.messageTF.text;
-				data[Constants.KEY_ACTOR_NO] = PhotonPeer.getInstance().getActorNo();
-				_peer.opRaiseEventWithCode( PhotonPeer.CODE_CHATMESSAGE, data );
-				Utils.serverLog( "|CHAT| " + _login + ": " + _chat.messageTF.text );
+				_room.sendChatMessage( _chat.messageTF.text );
 				
 				//View side
 				addChatLine( _player.bodyColor, 0xFFFFFF, _player.playerName, _chat.messageTF.text );
@@ -139,169 +143,82 @@ package
 		
 		private function applyChatMessage( e : ChatEvent ):void
 		{
-			var currentPlayer : Player = getPlayerByActorNo( e.actorNo );
-			currentPlayer.parseEmotion( e.message );
-			//TODO: Flying message
-			FlyingMessage.show( currentPlayer.x + 16, currentPlayer.y - 48, e.nickName + ": " + e.message, _level );
-
 			addChatLine( e.color, 0xFFFFFF, e.nickName, e.message );
 			
 			var channel : SoundChannel = (new ChatMessageSound()).play();
-			var vol : Number = 1.0 - (new Point( _player.playerX, _player.playerY ).subtract( new Point( currentPlayer.x, currentPlayer.y ) ).length / 1000);
+			/*var vol : Number = 1.0 - (new Point( _player.playerX, _player.playerY ).subtract( new Point( currentPlayer.x, currentPlayer.y ) ).length / 1000);
 			if ( vol < 0 )
 				vol = 0;
 			if ( channel )
-				channel.soundTransform = new SoundTransform( vol, 0 );
+				channel.soundTransform = new SoundTransform( vol, 0 );*/
 		}
 		
+		//Someone entering event
+		private function playerEntered( e : JoinEvent ):void
+		{
+			(new PlayerEnterSound()).play();
+			if ( e.getActorNo() != PhotonPeer.getInstance().getActorNo() )
+				addChatLine( 0x00FF00, 0xFFFF00, "System", "К нам заявился некий " + PhotonPeer.getInstance().getActorPropertiesByActorNo(e.getActorNo()).actorName + "." );
+		}
+		
+		//Someone leaving event
+		private function playerLeaved( e : LeaveEvent ):void
+		{
+			(new PlayerLeaveSound()).play();
+			addChatLine( 0x00FF00, 0xFFFF00, "System", "К сожалению, " + PhotonPeer.getInstance().getActorPropertiesByActorNo(e.getActorNo()).actorName + " покинул нас." );
+		}
+		
+		//We have list of rooms!
 		private function onGameList( e : GameListEvent ):void
 		{
+			if ( _room == null ) //Joining at first time
+			{
+				PhotonPeer.getInstance().addEventListener( ChatEvent.TYPE, applyChatMessage );
+				PhotonPeer.getInstance().addEventListener( JoinEvent.TYPE, playerEntered );
+				PhotonPeer.getInstance().addEventListener( LeaveEvent.TYPE, playerLeaved );
+			}
+			else
+			{
+				_room.deinit();
+			}
+			joinRoomWithName( _level.curLevel );
+			_room = new Room( _level, _player );
+			
+		}
+		
+		private function joinRoomWithName( roomName : String ):void
+		{
 			var list:Vector.<GameListEntry> = PhotonPeer.getInstance().getGameList();
-			trace("So, we are connected. Game list (" + PhotonPeer.getInstance().getNumberOfGames() + " entries):" );
+			trace("So, we are connected and got game list (" + PhotonPeer.getInstance().getNumberOfGames() + " entries):" );
 			
 			var roomExists : Boolean = false;
 			for each ( var game : GameListEntry in list )
-				if ( game.roomName == _level.curLevel )
+				if ( game.roomName == roomName )
 					roomExists = true;
 			
 			if ( roomExists )
 			{
-				//Room exists, connect
-				generateNameAndStoreAsActorProperty();
-				PhotonPeer.getInstance().opJoinGame( list[0].roomName );
+				//Room exists, create model
+				trace( "joining exists room" );
+				PhotonPeer.getInstance().opJoinGame( roomName );
 			}
 			else
 			{
 				//Room don't exists, create room with level name
 				var gp:GameProperties = GameProperties.createDefault();
 				gp.customProperties = new Dictionary();
-				gp.customProperties["starHolderId"] = _player.name;
+				//gp.customProperties["starHolderId"] = _player.name;
 				
-				generateNameAndStoreAsActorProperty();
-				
-				PhotonPeer.getInstance().opCreateGame( _level.curLevel, gp );
+				PhotonPeer.getInstance().opCreateGame( roomName, gp );
 			}
 		}
 		
-		private function generateNameAndStoreAsActorProperty() : void {
-			var ap : ActorProperties = PhotonPeer.getInstance().getLocalActorProperties();
-			if (ap != null) {
-				trace("ActorProperties found, Player's name is " + ap.actorName);
-				return;
-			} else {
-				ap = ActorProperties.createDefault();
-				ap.actorName = _player.playerName;
-				ap.customProperties = new Dictionary();
-				ap.customProperties["bodyColor"] = _bodyColor;
-				ap.customProperties["faceColor"] = _faceColor;
-				trace("generated ActorProperties, actor name: " + ap.actorName);
-				PhotonPeer.getInstance().setLocalActorProperties(ap);
-			}
-			
-			PhotonPeer.getInstance().addEventListener(JoinEvent.TYPE, onActorJoined);
-			PhotonPeer.getInstance().addEventListener(LeaveEvent.TYPE, onActorLeaved );
-		}
-		
-		private function onActorJoined( e : JoinEvent ):void
+		private function setNewRoom( roomName : String ):void
 		{
-			if ( !_players )
-				_players = new Vector.<Player>();
-				
-			_chat.playerCountTF.text = "Сейчас где-то гуляет " + PhotonPeer.getInstance().getActorNumbers().length + " человек(а).";
-			
-			if (e.getActorNo() == PhotonPeer.getInstance().getActorNo()) 
-			{
-				for (var i : int = 0; i<PhotonPeer.getInstance().getActorNumbers().length; i++) {
-					var aNo : int = PhotonPeer.getInstance().getActorNumbers()[i];
-					var props : ActorProperties = PhotonPeer.getInstance().getActorPropertiesByActorNo(aNo);
-					trace( "Already in room: " + props.actorName + "(" + aNo + ")" );
-					//Create exists players:
-					if ( aNo != PhotonPeer.getInstance().getActorNo() )
-						addRemotePlayer( aNo );
-				}
-			}
-			
-			var ap : ActorProperties = PhotonPeer.getInstance().getActorPropertiesByActorNo(e.getActorNo());
-			if ( ap )
-			{
-				if ( e.getActorNo() == PhotonPeer.getInstance().getActorNo() ) //Ow, it's me!
-				{
-					if ( ap.customProperties.hasOwnProperty("bodyColor") )
-						_player.bodyColor = ap.customProperties["bodyColor"];
-					if ( ap.customProperties.hasOwnProperty("faceColor") )
-						_player.faceColor = ap.customProperties["faceColor"];
-				}
-				else
-				{
-					//Preparing data
-					var data : Dictionary = new Dictionary();
-					data["x"] = _player.playerX;
-					data["y"] = _player.playerY;
-					data[Constants.KEY_ACTOR_NO] = PhotonPeer.getInstance().getActorNo();
-					var target : Vector.<int> = new Vector.<int>();
-					target.push( e.getActorNo() );
-					PhotonPeer.getInstance().opRaiseEventWithCode( PhotonPeer.CODE_PLAYERMOVE, data, 0, target );
-					addRemotePlayer( e.getActorNo() );
-					(new PlayerEnterSound()).play();
-					addChatLine( 0x00FF00, 0xFFFF00, "System", "К нам заявился некий " + PhotonPeer.getInstance().getActorPropertiesByActorNo(e.getActorNo()).actorName + "." );
-				}
-				
-				trace( "Player joined! Name: " + ap.actorName, ap.customProperties["bodyColor"] );
-			}
-		}
-		
-		private function addRemotePlayer( actorNo : int ):void
-		{
-			var props : ActorProperties = PhotonPeer.getInstance().getActorPropertiesByActorNo(actorNo);
-			var newPlayer : Player = new Player( false, props.actorName );
-			newPlayer.actorNo = actorNo;
-			newPlayer.bodyColor = props.customProperties["bodyColor"];
-			newPlayer.faceColor = props.customProperties["faceColor"];
-			_players.push( newPlayer );
-			_level.addPlayer( newPlayer );
-		}
-		
-		private function onActorLeaved( e: LeaveEvent ):void
-		{
-			trace( "Leaved: " + PhotonPeer.getInstance().getActorPropertiesByActorNo(e.getActorNo()).actorName );
-			var currentPlayer : Player = getPlayerByActorNo( e.getActorNo() );
-			currentPlayer.removeFromParent( true );
-			_players.splice( _players.indexOf( currentPlayer ), 1 );
-			
-			_chat.playerCountTF.text = "Сейчас где-то гуляет " + PhotonPeer.getInstance().getActorNumbers().length + " человек(а).";
-			(new PlayerLeaveSound()).play();
-			addChatLine( 0x00FF00, 0xFFFF00, "System", "К сожалению, " + PhotonPeer.getInstance().getActorPropertiesByActorNo(e.getActorNo()).actorName + " покинул нас." );
-		}
-		
-		private function onPlayerMoved( e : MoveEvent ):void
-		{
-			var currentPlayer : Player = getPlayerByActorNo( e.actorNo );
-			if ( currentPlayer != null )
-				currentPlayer.targetPos = new Point( e.x, e.y );
-		}
-		
-		private function onPlayerPush( e : PushEvent ):void
-		{
-			var currentPlayer : Player = getPlayerByActorNo(e.actorNo);
-			var pushPoint : Point = new Point( e.side == 1 ? 32 : (e.side == 3 ? -32 : 0), e.side == 2 ? -48 : (e.side == 4 ? 16 : 0) );
-			if ( currentPlayer.localToGlobal( pushPoint ).subtract( new Point( stage.stageWidth / 2, stage.stageHeight / 2 ) ).length < 20 )
-				_player.push( e.side );
-		}
-		
-		private function getPlayerByActorNo( actorNo : int ):Player
-		{
-			var currentPlayer : Player;
-			for each ( var pl : Player in _players )
-				if ( pl.actorNo == actorNo )
-				{
-					currentPlayer = pl;
-					break;
-				}
-				
-			if ( !currentPlayer )
-				trace("Can't find player with id", actorNo );
-				
-			return currentPlayer;
+			//PhotonPeer.getInstance().opLeaveGame();
+			//_room.deinit();
+			//joinRoomWithName( roomName );
+			//_room = new Room( _level, _player );
 		}
 	}
 	
