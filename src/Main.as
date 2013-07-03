@@ -112,7 +112,7 @@ package
 				{
 					var roomNam : String = _chat.messageTF.text.split(" ")[1];
 					_level.loadLevel( roomNam );
-					//setNewRoom( roomNam );
+					setNewRoom( roomNam );
 					_chat.messageTF.text = "";
 					return;
 				}
@@ -171,6 +171,7 @@ package
 		//We have list of rooms!
 		private function onGameList( e : GameListEvent ):void
 		{
+			trace("GAMELIST!");
 			if ( _room == null ) //Joining at first time
 			{
 				PhotonPeer.getInstance().addEventListener( ChatEvent.TYPE, applyChatMessage );
@@ -208,14 +209,14 @@ package
 				var gp:GameProperties = GameProperties.createDefault();
 				gp.customProperties = new Dictionary();
 				//gp.customProperties["starHolderId"] = _player.name;
-				
+				trace("creating new room named ", roomName );
 				PhotonPeer.getInstance().opCreateGame( roomName, gp );
 			}
 		}
 		
 		private function setNewRoom( roomName : String ):void
 		{
-			//PhotonPeer.getInstance().opLeaveGame();
+			PhotonPeer.getInstance().opLeaveGame();
 			//_room.deinit();
 			//joinRoomWithName( roomName );
 			//_room = new Room( _level, _player );
