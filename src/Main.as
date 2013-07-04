@@ -23,6 +23,7 @@ package
 	import flash.text.TextFormat;
 	import flash.ui.Keyboard;
 	import flash.utils.Dictionary;
+	import flash.utils.setInterval;
 	import model.ChatEvent;
 	import model.MoveEvent;
 	import model.PushEvent;
@@ -60,6 +61,8 @@ package
 			
 			//Waiting for room list...
 			PhotonPeer.getInstance().addEventListener( GameListEvent.TYPE, onGameList );
+			
+			Utils.serverLog( _login + " entered the game!" );
 		}
 		
 		private function init(e:Event = null):void 
@@ -90,6 +93,8 @@ package
 			
 			addEventListener( Event.ENTER_FRAME, onFrame );
 			stage.addEventListener( Event.RESIZE, onResize );
+			
+			setInterval( function():void { _chat.playerCountTF.text = "Где-то гуляет " + PhotonPeer.getInstance().getNumberOfPeers() + " игроков";; }, 1000 );
 		}
 		
 		private function onResize( e:* ):void

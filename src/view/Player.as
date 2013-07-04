@@ -125,7 +125,7 @@ package view
 			_name = name;
 			
 			if ( _local )
-				setTimeout( netMoving, 200 );
+				setTimeout( netMoving, 150 );
 		}
 		
 		private function checkMovement( e : KeyboardEvent ):void
@@ -187,7 +187,6 @@ package view
 		{
 			if ( !_local || !active )
 				return;
-				
 			
 			if ( side == 3  )
 				_pushSpeed.x = -16;
@@ -203,7 +202,7 @@ package view
 		{
 			if ( _moveSpeed.length > 0 || _pushSpeed.length > 0 )
 				sendPlaceByNet();
-			setTimeout( netMoving, 50 );
+			setTimeout( netMoving, 150 );
 		}
 		
 		public function sendPlaceByNet():void
@@ -282,6 +281,7 @@ package view
 					_prevX = newPos.x;
 					_prevY = newPos.y;
 					active = true;
+					sendPlaceByNet();
 				} } );
 			}
 			

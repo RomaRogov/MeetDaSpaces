@@ -66,7 +66,7 @@ package
 			_interface.bodyColor.addEventListener( TextEvent.TEXT_INPUT, bodyColorChanged );
 			_interface.faceColor.addEventListener( TextEvent.TEXT_INPUT, faceColorChanged );
 			
-			Utils.serverLog( "Someone opened the game" );
+			Utils.serverLog( "Someone opened the game"  );
 			
 			//Init starling
 			addEventListener( Event.ADDED_TO_STAGE, function(e:*):void { 
